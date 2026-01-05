@@ -6,6 +6,8 @@ export enum DetectionVerdict {
   UNCERTAIN = 'UNCERTAIN'
 }
 
+export type AppTheme = 'midnight' | 'pure' | 'cyberpunk' | 'nordic';
+
 export interface forensicMetric {
   name: string;
   value: number; // 0-100
@@ -37,4 +39,5 @@ export interface AppState {
   result: AnalysisResult | null;
   error: string | null;
   language: 'zh' | 'en';
+  theme: AppTheme;
 }
