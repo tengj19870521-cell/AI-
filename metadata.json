@@ -1,0 +1,7 @@
+{
+  "name": "Copy of AI 图像鉴别专家",
+  "description": "专业级图像取证工具，利用 Gemini 高级视觉推理技术检测图片中的 AI 生成痕迹。",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
