@@ -6,6 +6,7 @@ import { analyzeImage } from './services/geminiService';
 import { AppState, DetectionVerdict, AppTheme } from './types';
 
 declare const html2canvas: any;
+declare const window: any;
 
 const translations = {
   zh: {
@@ -22,9 +23,12 @@ const translations = {
     resetBtn: "再测一张",
     exportBtn: "导出报告卡片",
     exporting: "正在生成...",
-    modelLabel: "疑似机型/软件",
     analyzing: "正在破解像素密码...",
-    footerNote: "本实验室结果通过像素指纹分析得出，仅供交流研究参考。"
+    footerNote: "本实验室结果通过像素指纹分析得出，仅供交流研究参考。",
+    activateTitle: "实验室尚未激活",
+    activateDesc: "由于本应用使用 Gemini 3 高级模型，请先授权您的 API Key 以开始分析。",
+    activateBtn: "选择 API Key 激活",
+    billingLink: "了解 API 计费说明"
   },
   en: {
     uploadTitle: "Drop image here",
@@ -40,21 +44,25 @@ const translations = {
     resetBtn: "New Scan",
     exportBtn: "Export Report",
     exporting: "Generating...",
-    modelLabel: "Suspected Engine",
     analyzing: "Cracking pixels...",
-    footerNote: "Results based on digital fingerprint analysis."
+    footerNote: "Results based on digital fingerprint analysis.",
+    activateTitle: "Lab Inactive",
+    activateDesc: "This app uses Gemini 3 models. Please select your API Key to proceed.",
+    activateBtn: "Activate with API Key",
+    billingLink: "Billing Info"
   }
 };
 
 const App: React.FC = () => {
-  const [state, setState] = useState<AppState & { isExporting: boolean }>({
+  const [state, setState] = useState<AppState & { isExporting: boolean, hasKey: boolean }>({
     image: null,
     isAnalyzing: false,
     result: null,
     error: null,
     language: 'zh',
     theme: (localStorage.getItem('app-theme') as AppTheme) || 'midnight',
-    isExporting: false
+    isExporting: false,
+    hasKey: true // Default true to check on mount
   });
 
   const t = translations[state.language];
@@ -63,7 +71,26 @@ const App: React.FC = () => {
 
   useEffect(() => {
     localStorage.setItem('app-theme', state.theme);
+    checkApiKey();
   }, [state.theme]);
+
+  const checkApiKey = async () => {
+    if (window.aistudio?.hasSelectedApiKey) {
+      const has = await window.aistudio.hasSelectedApiKey();
+      setState(prev => ({ ...prev, hasKey: has }));
+    }
+  };
+
+  const handleActivate = async () => {
+    try {
+      if (window.aistudio?.openSelectKey) {
+        await window.aistudio.openSelectKey();
+        setState(prev => ({ ...prev, hasKey: true }));
+      }
+    } catch (err) {
+      console.error("Activation failed", err);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -84,6 +111,9 @@ const App: React.FC = () => {
       setState(prev => ({ ...prev, result, isAnalyzing: false }));
     } catch (err: any) {
       setState(prev => ({ ...prev, isAnalyzing: false, error: err.message }));
+      if (err.message.includes("Requested entity was not found")) {
+        setState(prev => ({ ...prev, hasKey: false }));
+      }
     }
   };
 
@@ -161,9 +191,37 @@ const App: React.FC = () => {
         />
       </div>
 
-      <main className="flex-grow container mx-auto px-4 py-8 max-w-6xl">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          
+      <main className="flex-grow container mx-auto px-4 py-8 max-w-6xl relative">
+        {/* Activation Overlay */}
+        {!state.hasKey && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
+            <div className={`max-w-md w-full p-10 rounded-[3rem] border backdrop-blur-3xl animate-in zoom-in-95 duration-500 ${themeClasses.card}`}>
+              <div className={`w-20 h-20 mx-auto rounded-3xl flex items-center justify-center mb-8 shadow-2xl bg-gradient-to-tr ${themeClasses.accent}`}>
+                <i className="fas fa-key text-3xl text-white"></i>
+              </div>
+              <h2 className="text-3xl font-black text-center mb-4 tracking-tight">{t.activateTitle}</h2>
+              <p className="text-center opacity-60 mb-8 leading-relaxed font-medium">
+                {t.activateDesc}
+              </p>
+              <button 
+                onClick={handleActivate}
+                className={`w-full py-5 bg-gradient-to-r ${themeClasses.accent} text-white font-black rounded-2xl shadow-xl hover:scale-105 active:scale-95 transition-all mb-4`}
+              >
+                {t.activateBtn}
+              </button>
+              <a 
+                href="https://ai.google.dev/gemini-api/docs/billing" 
+                target="_blank" 
+                rel="noreferrer"
+                className="block text-center text-xs font-bold opacity-40 hover:opacity-100 transition-opacity underline decoration-dotted underline-offset-4"
+              >
+                {t.billingLink}
+              </a>
+            </div>
+          </div>
+        )}
+
+        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-10 transition-all duration-700 ${!state.hasKey ? 'blur-2xl pointer-events-none scale-95 opacity-50' : 'blur-0 opacity-100'}`}>
           {/* Left Panel: Input */}
           <div className="space-y-6 no-print">
             <div className={`relative rounded-[2.5rem] p-1.5 border-2 transition-all duration-700 ${state.image ? 'border-indigo-500/40' : 'border-black/5'}`}>
